@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 120
+
+[tool.isort]
+line_length = 120
+use_parentheses = true
+multi_line_output = 3
+include_trailing_comma = true
+
+[tool.datamodel-codegen]
+snake-case-field = true
+use-double-quotes = true
+target-python-version = "3.10"
+base-class = "city_sense_backend.utils.schemas.Model"
+
+[tool.pyright]
+ignore = ["migrations/versions/**"]
