@@ -34,7 +34,7 @@ def get_targets():
 
         target = DiscoveredTarget(
             targets=[container.labels[TARGET_ADDRESS_LABEL]],
-            labels={"job": job_name},
+            labels={"job": job_name, "container_name": container.name or ""},
         )
 
         result.append(target)
