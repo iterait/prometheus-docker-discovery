@@ -9,7 +9,8 @@ from pydantic import BaseModel
 DISCOVERY_LABEL_PREFIX = "prometheus."
 JOB_LABEL = f"{DISCOVERY_LABEL_PREFIX}job"
 TARGET_LABELS_PREFIX = f"{DISCOVERY_LABEL_PREFIX}labels."
-TARGET_ADDRESS_LABEL = f"{TARGET_LABELS_PREFIX}address"
+TARGET_PORT_LABEL = f"{DISCOVERY_LABEL_PREFIX}metrics.port"
+TARGET_HOST_LABEL = f"{DISCOVERY_LABEL_PREFIX}metrics.host"
 
 
 app = FastAPI()
@@ -51,11 +52,23 @@ def get_targets():
     result = list[DiscoveredTarget]()
 
     for container in discover():
-        if not TARGET_ADDRESS_LABEL in container.labels:
+        if not TARGET_PORT_LABEL in container.labels:
+            continue
+
+        port = container.labels[TARGET_PORT_LABEL]
+        host = container.labels.get(TARGET_HOST_LABEL)
+
+        if container.ports and (port_spec := container.ports.get(f"{port}/tcp")) is not None:
+            port = port_spec[0]["HostPort"]
+
+            if not host:
+                host = port_spec[0]["HostIp"]
+
+        if not host or not port:
             continue
 
         target = DiscoveredTarget(
-            targets=[container.labels[TARGET_ADDRESS_LABEL]],
+            targets=[f"{host}:{port}"],
             labels={
                 "job": container.labels[JOB_LABEL],
                 "container_name": container.name or "",
