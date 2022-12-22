@@ -81,32 +81,49 @@ def get_targets():
     return result
 
 
-container_memory_usage = prometheus_client.Gauge(
-    "docker_container_memory_usage_bytes",
-    "Container memory usage (without caches)",
-    ["job", "container_name"],
-)
-
-container_cpu_usage = prometheus_client.Gauge(
-    "docker_container_cpu_usage_percent",
-    "Container CPU usage percent (not divided by number of CPU cores)",
-    ["job", "container_name"],
-)
-
-
 @app.get("/metrics", response_class=PrometheusMetricsResponse)
 def get_metrics():
     """
     Retrieve Prometheus metrics
     """
 
-    container_cpu_usage.clear()
-    container_memory_usage.clear()
+    registry = prometheus_client.CollectorRegistry()
+    label_names = ["job", "container_name"]
+
+    for container in discover():
+        for label in target_labels(container).keys():
+            if not label in label_names:
+                label_names.append(label)
+
+    container_memory_usage = prometheus_client.Gauge(
+        "docker_container_memory_usage_bytes",
+        "Container memory usage (without caches)",
+        label_names,
+        registry=registry,
+    )
+
+    container_cpu_usage = prometheus_client.Gauge(
+        "docker_container_cpu_usage_percent",
+        "Container CPU usage percent (not divided by number of CPU cores)",
+        label_names,
+        registry=registry,
+    )
 
     for container in discover():
         stats = container.stats(stream=False)
 
-        container_memory_usage.labels(job=container.labels[JOB_LABEL], container_name=container.name or "").set(
+        labels = target_labels(container)
+        metric_labels = dict[str, str]()
+
+        for label in label_names:
+            if label == "job":
+                metric_labels[label] = container.labels[JOB_LABEL]
+            elif label == "container_name":
+                metric_labels[label] = container.name or ""
+            else:
+                metric_labels[label] = labels.get(label, "")
+
+        container_memory_usage.labels(**metric_labels).set(
             stats["memory_stats"].get("usage", 0) - stats["memory_stats"].get("stats", {}).get("cache", 0)
         )
 
@@ -115,8 +132,8 @@ def get_metrics():
             "system_cpu_usage", 0
         )
 
-        container_cpu_usage.labels(job=container.labels[JOB_LABEL], container_name=container.name or "").set(
+        container_cpu_usage.labels(**metric_labels).set(
             (cpu_delta / system_cpu_delta) * stats["cpu_stats"]["online_cpus"] * 100.0 if system_cpu_delta > 0 else 0
         )
 
-    return PrometheusMetricsResponse(prometheus_client.generate_latest())
+    return PrometheusMetricsResponse(prometheus_client.generate_latest(registry))
