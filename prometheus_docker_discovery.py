@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from typing import Iterable, cast
 
 import prometheus_client
@@ -90,7 +91,9 @@ def get_metrics():
     registry = prometheus_client.CollectorRegistry()
     label_names = ["job", "container_name"]
 
-    for container in discover():
+    containers = list(discover())
+
+    for container in containers:
         for label in target_labels(container).keys():
             if not label in label_names:
                 label_names.append(label)
@@ -109,7 +112,7 @@ def get_metrics():
         registry=registry,
     )
 
-    for container in discover():
+    def fetch_stats(container: Container):
         stats = container.stats(stream=False)
 
         labels = target_labels(container)
@@ -135,5 +138,9 @@ def get_metrics():
         container_cpu_usage.labels(**metric_labels).set(
             (cpu_delta / system_cpu_delta) * stats["cpu_stats"]["online_cpus"] * 100.0 if system_cpu_delta > 0 else 0
         )
+
+    with ThreadPoolExecutor(64) as pool:
+        for container in containers:
+            pool.submit(fetch_stats, container)
 
     return PrometheusMetricsResponse(prometheus_client.generate_latest(registry))
