@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import Iterable, cast
 
 import prometheus_client
@@ -90,6 +91,7 @@ def get_metrics():
 
     registry = prometheus_client.CollectorRegistry()
     label_names = ["job", "container_name"]
+    now = datetime.utcnow()
 
     containers = list(discover())
 
@@ -108,6 +110,13 @@ def get_metrics():
     container_cpu_usage = prometheus_client.Gauge(
         "docker_container_cpu_usage_percent",
         "Container CPU usage percent (not divided by number of CPU cores)",
+        label_names,
+        registry=registry,
+    )
+
+    container_uptime = prometheus_client.Gauge(
+        "docker_container_uptime_seconds",
+        "Container uptime (not divided by number of CPU cores)",
         label_names,
         registry=registry,
     )
@@ -138,6 +147,13 @@ def get_metrics():
         container_cpu_usage.labels(**metric_labels).set(
             (cpu_delta / system_cpu_delta) * stats["cpu_stats"]["online_cpus"] * 100.0 if system_cpu_delta > 0 else 0
         )
+
+        if container.status == "running" and container.attrs:
+            started_at = container.attrs.get("State", {}).get("StartedAt")
+            if started_at:
+                container_uptime.labels(**metric_labels).set((now - datetime.fromisoformat(started_at)).total_seconds())
+        else:
+            container_uptime.labels(**metric_labels).set(0)
 
     with ThreadPoolExecutor(64) as pool:
         for container in containers:
