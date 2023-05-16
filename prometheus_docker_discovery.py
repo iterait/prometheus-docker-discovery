@@ -151,7 +151,7 @@ def get_metrics():
         if container.status == "running" and container.attrs:
             started_at = container.attrs.get("State", {}).get("StartedAt")
             if started_at:
-                container_uptime.labels(**metric_labels).set((now - datetime.fromisoformat(started_at)).total_seconds())
+                container_uptime.labels(**metric_labels).set((now - datetime.fromisoformat(started_at).replace(tzinfo=None)).total_seconds())
         else:
             container_uptime.labels(**metric_labels).set(0)
 
