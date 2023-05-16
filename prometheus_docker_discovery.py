@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterable, cast
 
 import prometheus_client
@@ -91,7 +91,7 @@ def get_metrics():
 
     registry = prometheus_client.CollectorRegistry()
     label_names = ["job", "container_name"]
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     containers = list(discover())
 
@@ -151,7 +151,9 @@ def get_metrics():
         if container.status == "running" and container.attrs:
             started_at = container.attrs.get("State", {}).get("StartedAt")
             if started_at:
-                container_uptime.labels(**metric_labels).set((now - datetime.fromisoformat(started_at).replace(tzinfo=None)).total_seconds())
+                container_uptime.labels(**metric_labels).set(
+                    (now - datetime.fromisoformat(started_at).astimezone(timezone.utc)).total_seconds()
+                )
         else:
             container_uptime.labels(**metric_labels).set(0)
 
