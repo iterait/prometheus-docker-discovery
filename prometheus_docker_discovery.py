@@ -116,7 +116,7 @@ def get_metrics():
 
     container_uptime = prometheus_client.Gauge(
         "docker_container_uptime_seconds",
-        "Container uptime (not divided by number of CPU cores)",
+        "Container uptime",
         label_names,
         registry=registry,
     )
