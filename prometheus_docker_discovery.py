@@ -54,7 +54,7 @@ def get_targets():
     result = list[DiscoveredTarget]()
 
     for container in discover():
-        if not TARGET_PORT_LABEL in container.labels:
+        if TARGET_PORT_LABEL not in container.labels:
             continue
 
         port = container.labels[TARGET_PORT_LABEL]
@@ -95,9 +95,13 @@ def get_metrics():
 
     containers = list(discover())
 
+    info = client.df()
+
+    containers_df = {container["Id"]: container for container in info["Containers"]}
+
     for container in containers:
         for label in target_labels(container).keys():
-            if not label in label_names:
+            if label not in label_names:
                 label_names.append(label)
 
     container_memory_usage = prometheus_client.Gauge(
@@ -119,6 +123,21 @@ def get_metrics():
         "Container uptime",
         label_names,
         registry=registry,
+    )
+
+    container_rootfs_size = prometheus_client.Gauge(
+        "docker_container_rootfs_size",
+        "Container rootfs size in bytes.",
+        label_names + ["container_id"],
+        registry=registry,
+    )
+
+    container_size_on_disk = prometheus_client.Gauge(
+        "docker_size_on_disk", "Container size on disk in bytes.", label_names + ["container_id"], registry=registry
+    )
+
+    volume_size = prometheus_client.Gauge(
+        "docker_volume_size", "Size of a volume in bytes.", ["volume_id"], registry=registry
     )
 
     def fetch_stats(container: Container):
@@ -156,6 +175,16 @@ def get_metrics():
                 )
         else:
             container_uptime.labels(**metric_labels).set(0)
+
+        container_rootfs_size.labels(container_id=container.id, **metric_labels).set(
+            containers_df[container.id]["SizeRootFs"]
+        )
+        container_size_on_disk.labels(container_id=container.id, **metric_labels).set(
+            containers_df[container.id]["SizeRw"]
+        )
+
+    for volume in info["Volumes"]:
+        volume_size.labels(volume_id=volume["Name"]).set(volume["UsageData"]["Size"])
 
     with ThreadPoolExecutor(64) as pool:
         for container in containers:
