@@ -126,18 +126,21 @@ def get_metrics():
     )
 
     container_rootfs_size = prometheus_client.Gauge(
-        "docker_container_rootfs_size",
+        "docker_container_rootfs_size_bytes",
         "Container rootfs size in bytes.",
         label_names + ["container_id"],
         registry=registry,
     )
 
     container_size_on_disk = prometheus_client.Gauge(
-        "docker_size_on_disk", "Container size on disk in bytes.", label_names + ["container_id"], registry=registry
+        "docker_container_disk_size_bytes",
+        "Container size on disk in bytes.",
+        label_names + ["container_id"],
+        registry=registry,
     )
 
     volume_size = prometheus_client.Gauge(
-        "docker_volume_size", "Size of a volume in bytes.", ["volume_id"], registry=registry
+        "docker_volume_size_bytes", "Size of a volume in bytes.", ["volume_id"], registry=registry
     )
 
     def fetch_stats(container: Container):
