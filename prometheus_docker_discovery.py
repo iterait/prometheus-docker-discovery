@@ -90,7 +90,7 @@ def get_metrics():
     """
 
     registry = prometheus_client.CollectorRegistry()
-    label_names = ["job", "container_name"]
+    label_names = ["job", "container_name", "image", "image_id"]
     now = datetime.now(timezone.utc)
 
     containers = list(discover())
@@ -127,14 +127,21 @@ def get_metrics():
 
     container_rootfs_size = prometheus_client.Gauge(
         "docker_container_rootfs_size_bytes",
-        "Container rootfs size in bytes.",
+        "Container rootfs size in bytes",
         label_names + ["container_id"],
         registry=registry,
     )
 
     container_size_on_disk = prometheus_client.Gauge(
         "docker_container_disk_size_bytes",
-        "Container size on disk in bytes.",
+        "Container size on disk in bytes",
+        label_names + ["container_id"],
+        registry=registry,
+    )
+
+    container_mount_count = prometheus_client.Gauge(
+        "docker_container_mount_count",
+        "Number of container mounts",
         label_names + ["container_id"],
         registry=registry,
     )
@@ -154,6 +161,10 @@ def get_metrics():
                 metric_labels[label] = container.labels[JOB_LABEL]
             elif label == "container_name":
                 metric_labels[label] = container.name or ""
+            elif label == "image":
+                metric_labels[label] = containers_df[container.id].get("Image", "")
+            elif label == "image_id":
+                metric_labels[label] = containers_df[container.id].get("ImageID", "")
             else:
                 metric_labels[label] = labels.get(label, "")
 
@@ -182,8 +193,14 @@ def get_metrics():
         container_rootfs_size.labels(container_id=container.id, **metric_labels).set(
             containers_df[container.id]["SizeRootFs"]
         )
-        container_size_on_disk.labels(container_id=container.id, **metric_labels).set(
-            containers_df[container.id]["SizeRw"]
+
+        if "SizeRw" in containers_df[container.id]:
+            container_size_on_disk.labels(container_id=container.id, **metric_labels).set(
+                containers_df[container.id]["SizeRw"]
+            )
+
+        container_mount_count.labels(container_id=container.id, **metric_labels).set(
+            len(containers_df[container.id].get("Mounts", []))
         )
 
     for volume in info["Volumes"]:

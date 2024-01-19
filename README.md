@@ -5,10 +5,11 @@ This service exports [prometheus](https://prometheus.io/) metrics of various doc
 ## Metrics
 Currently supported metrics:
 - `docker_container_memory_usage_bytes` - Container memory usage (without caches)
-- `docker_container_cpu_usage_percent` - Container CPU usage percent (not divided by number of CPU cores
+- `docker_container_cpu_usage_percent` - Container CPU usage percent (not divided by number of CPU cores)
 - `docker_container_uptime_seconds` - Container uptime
 - `docker_container_rootfs_size_bytes` - Container rootfs size in bytes
 - `docker_container_disk_size_bytes` - Container size on disk in bytes
+- `docker_container_mount_count` - Number of container mounts
 - `docker_volume_size_bytes` - Size of a volume in bytes
 
 ## Container Metrics Registration via Labels
