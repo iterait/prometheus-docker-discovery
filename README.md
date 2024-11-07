@@ -28,30 +28,8 @@ docker run -p 8000:8000 -v /var/run/docker.sock:/var/run/docker.sock iterait/pro
 Access the metrics endpoint at http://localhost:8000/metrics.
 Be patient, as the metrics might take a while to become available.
 
-## Example docker-compose.yaml
-Integrate Prometheus Docker Discovery seamlessly into your Docker-compose environment with this example configuration:
-
-```yaml
-services:
-  db_prod:
-    image: postgres
-    labels:
-      - prometheus.job=db
-      - prometheus.labels.env=production
-
-  db_dev:
-    image: postgres
-    labels:
-      - prometheus.job=db
-      - prometheus.labels.env=dev
-
-  prometheus_docker_discovery:
-    image: iterait/prometheus-docker-discovery:master
-    ports:
-      - 8000:8000
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-```
+## Example compose.yaml
+Integrate Prometheus Docker Discovery seamlessly into your Docker-compose environment with this [example configuration](./compose.example.yaml):
 
 ## License
 Prometheus Docker Discovery is released under the [MIT License](./LICENSE).
