@@ -60,7 +60,10 @@ def get_targets():
         port = container.labels[TARGET_PORT_LABEL]
         host = container.labels.get(TARGET_HOST_LABEL)
 
-        if container.ports and (port_spec := container.ports.get(f"{port}/tcp")) is not None:
+        if (
+            container.ports
+            and (port_spec := container.ports.get(f"{port}/tcp")) is not None
+        ):
             port = port_spec[0]["HostPort"]
 
             if not host:
@@ -147,7 +150,10 @@ def get_metrics():
     )
 
     volume_size = prometheus_client.Gauge(
-        "docker_volume_size_bytes", "Size of a volume in bytes.", ["volume_id"], registry=registry
+        "docker_volume_size_bytes",
+        "Size of a volume in bytes.",
+        ["volume_id"],
+        registry=registry,
     )
 
     def fetch_stats(container: Container):
@@ -171,23 +177,32 @@ def get_metrics():
                 metric_labels[label] = labels.get(label, "")
 
         container_memory_usage.labels(**metric_labels).set(
-            stats["memory_stats"].get("usage", 0) - stats["memory_stats"].get("stats", {}).get("cache", 0)
+            stats["memory_stats"].get("usage", 0)
+            - stats["memory_stats"].get("stats", {}).get("cache", 0)
         )
 
-        cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"] - stats["precpu_stats"]["cpu_usage"]["total_usage"]
-        system_cpu_delta = stats["cpu_stats"].get("system_cpu_usage", 0) - stats["precpu_stats"].get(
-            "system_cpu_usage", 0
+        cpu_delta = (
+            stats["cpu_stats"]["cpu_usage"]["total_usage"]
+            - stats["precpu_stats"]["cpu_usage"]["total_usage"]
         )
+        system_cpu_delta = stats["cpu_stats"].get("system_cpu_usage", 0) - stats[
+            "precpu_stats"
+        ].get("system_cpu_usage", 0)
 
         container_cpu_usage.labels(**metric_labels).set(
-            (cpu_delta / system_cpu_delta) * stats["cpu_stats"]["online_cpus"] * 100.0 if system_cpu_delta > 0 else 0
+            (cpu_delta / system_cpu_delta) * stats["cpu_stats"]["online_cpus"] * 100.0
+            if system_cpu_delta > 0
+            else 0
         )
 
         if container.status == "running" and container.attrs:
             started_at = container.attrs.get("State", {}).get("StartedAt")
             if started_at:
                 container_uptime.labels(**metric_labels).set(
-                    (now - datetime.fromisoformat(started_at).astimezone(timezone.utc)).total_seconds()
+                    (
+                        now
+                        - datetime.fromisoformat(started_at).astimezone(timezone.utc)
+                    ).total_seconds()
                 )
         else:
             container_uptime.labels(**metric_labels).set(0)
