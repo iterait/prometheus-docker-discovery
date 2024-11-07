@@ -90,7 +90,7 @@ def get_metrics():
     """
 
     registry = prometheus_client.CollectorRegistry()
-    label_names = ["job", "container_name", "image", "image_id"]
+    label_names = ["job", "container_name", "image", "image_id", "container_id"]
     now = datetime.now(timezone.utc)
 
     containers = list(discover())
@@ -128,21 +128,21 @@ def get_metrics():
     container_rootfs_size = prometheus_client.Gauge(
         "docker_container_rootfs_size_bytes",
         "Container rootfs size in bytes",
-        label_names + ["container_id"],
+        label_names,
         registry=registry,
     )
 
     container_size_on_disk = prometheus_client.Gauge(
         "docker_container_disk_size_bytes",
         "Container size on disk in bytes",
-        label_names + ["container_id"],
+        label_names,
         registry=registry,
     )
 
     container_mount_count = prometheus_client.Gauge(
         "docker_container_mount_count",
         "Number of container mounts",
-        label_names + ["container_id"],
+        label_names,
         registry=registry,
     )
 
@@ -165,6 +165,8 @@ def get_metrics():
                 metric_labels[label] = containers_df[container.id].get("Image", "")
             elif label == "image_id":
                 metric_labels[label] = containers_df[container.id].get("ImageID", "")
+            elif label == "container_id":
+                metric_labels[label] = container.id or "unknown-container-id"
             else:
                 metric_labels[label] = labels.get(label, "")
 
@@ -190,16 +192,16 @@ def get_metrics():
         else:
             container_uptime.labels(**metric_labels).set(0)
 
-        container_rootfs_size.labels(container_id=container.id, **metric_labels).set(
+        container_rootfs_size.labels(**metric_labels).set(
             containers_df[container.id]["SizeRootFs"]
         )
 
         if "SizeRw" in containers_df[container.id]:
-            container_size_on_disk.labels(container_id=container.id, **metric_labels).set(
+            container_size_on_disk.labels(**metric_labels).set(
                 containers_df[container.id]["SizeRw"]
             )
 
-        container_mount_count.labels(container_id=container.id, **metric_labels).set(
+        container_mount_count.labels(**metric_labels).set(
             len(containers_df[container.id].get("Mounts", []))
         )
 
